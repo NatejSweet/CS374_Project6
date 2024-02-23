@@ -42,30 +42,47 @@ void *myalloc(int size)
     else
     {
         struct block *current = head;
-        while (current->next != NULL && current->in_use == 1) // need to split later
+        while (current->next != NULL && (current->in_use == 1 || current->size < actual_size))
         {
             current = current->next;
         }
-        current = current->next;                                                                         // current->next == NULL
-        struct block *next_block = PTR_OFFSET(current, PADDED_SIZE(sizeof(struct block)) + actual_size); // next_block is the new block
-        printf("current size: %d\n", current->size);
-        printf("next block exists? %d\n", next_block != NULL);
-        next_block->size = current->size - actual_size - PADDED_SIZE(sizeof(struct block)); // size of the new block = size of the current block - size of the requested block - size of the block struct
-        current->in_use = 1;
-        current->size = actual_size; // size of the current block = size of the requested block
-        current->next = next_block;  // next of the current block = next_block
-        // printf("current size: %d\n", current->next->size);
-        // next_block->size = current->next->size - actual_size - PADDED_SIZE(sizeof(struct block));
-        // current->next->in_use = 1;
-        // current->next->size = actual_size;
-        // current->next->next = next_block;
-        return (int *)PTR_OFFSET(current, sizeof(struct block));
+        if (current->size < actual_size)//ensure there is room(may need to add size of another node, not sure, works for now)
+        {
+            printf("No space available\n");
+            return NULL;
+        }
+        else{
+            if (current->next == NULL)
+            {
+                struct block *next_block = PTR_OFFSET(current, PADDED_SIZE(sizeof(struct block)) + actual_size); // next_block is the new block
+                next_block->size = current->size - actual_size - PADDED_SIZE(sizeof(struct block)); // size of the new block = size of the current block - size of the requested block - size of the block struct
+                current->in_use = 1;
+                current->size = actual_size; // size of the current block = size of the requested block
+                current->next = next_block;  // next of the current block = next_block
+                return (int *)PTR_OFFSET(current, sizeof(struct block));
+            }
+            else
+            {
+                current->in_use = 1;
+                return (int *)PTR_OFFSET(current, sizeof(struct block));
+            }
+        }
     }
 }
 
 int myfree(int *ptr)
-{
-    return 0;
+{   ptr = (int *)PTR_OFFSET(ptr, -sizeof(struct block));
+    struct block *current = head;
+    while (current != NULL)
+    {
+        if (current == ptr)
+        {
+            current->in_use = 0;
+            return 0;
+        }
+        current = current->next;
+    }
+    return -1;
 }
 
 void print_data(void)
@@ -96,16 +113,12 @@ void print_data(void)
 
 int main(int argc, char *argv[])
 {
-    void *p;
-    void *p2;
-    void *p3;
+void *p;
 
-    print_data();
-    p = myalloc(16);
-    print_data();
-    p2 = myalloc(16);
-    print_data();
-    p3 = myalloc(16);
-    print_data();
-    printf("%p\n", p);
+myalloc(10);     print_data();
+p = myalloc(20); print_data();
+myalloc(30);     print_data();
+myfree(p);       print_data();
+myalloc(40);     print_data();
+myalloc(10);     print_data();
 }
